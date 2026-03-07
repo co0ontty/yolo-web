@@ -10,7 +10,6 @@ mkdir -p server/dist/web
 
 echo "=== Building CLI (multi-platform) ==="
 cd "$SCRIPT_DIR/cli"
-npm install
 
 # 编译各个平台的 CLI 可执行文件
 echo "Building CLI for Linux amd64..."
@@ -37,10 +36,11 @@ npm run build
 echo "=== Copying files to server dist ==="
 cp -r dist/* "$SCRIPT_DIR/server/dist/web/"
 
-echo "=== Copying CLI runtime files to server ==="
-cp -r "$SCRIPT_DIR/cli/internal" "$SCRIPT_DIR/server/"
-cp "$SCRIPT_DIR/cli/package.json" "$SCRIPT_DIR/server/"
-cp -r "$SCRIPT_DIR/cli/node_modules" "$SCRIPT_DIR/server/"
+echo "=== Copying CLI source for Docker build ==="
+cp "$SCRIPT_DIR/cli/go.mod" "$SCRIPT_DIR/server/cli-go.mod"
+cp "$SCRIPT_DIR/cli/go.sum" "$SCRIPT_DIR/server/cli-go.sum"
+cp -r "$SCRIPT_DIR/cli/cmd" "$SCRIPT_DIR/server/cli-cmd"
+cp -r "$SCRIPT_DIR/cli/internal" "$SCRIPT_DIR/server/cli-internal"
 
 echo "=== Building Docker image ==="
 cd "$SCRIPT_DIR/server"
