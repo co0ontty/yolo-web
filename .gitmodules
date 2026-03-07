@@ -4,6 +4,6 @@
 [submodule "cli"]
 	path = cli
 	url = git@github.com:co0ontty/yolo-cli.git
-[submodule "web"]
-	path = web
+[submodule "frontend"]
+	path = frontend
 	url = git@github.com:co0ontty/yolo-fronted.git

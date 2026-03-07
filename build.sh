@@ -25,8 +25,8 @@ GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o "$SCRIPT_DIR/server/dist/cli/
 echo "Building CLI for Windows amd64..."
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o "$SCRIPT_DIR/server/dist/cli/vibe-cli-windows-amd64.exe" ./cmd
 
-echo "=== Building web ==="
-cd "$SCRIPT_DIR/web"
+echo "=== Building frontend ==="
+cd "$SCRIPT_DIR/frontend"
 npm install
 npm run build
 

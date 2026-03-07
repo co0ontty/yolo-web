@@ -8,31 +8,32 @@ This is a "Vibe Coding" application - a Claude Code session manager with a web U
 
 ## Architecture
 
-**Current Unified Architecture (Single Docker Image):**
+**Unified Architecture (Single Docker Image):**
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     Docker Container                      │
-│  ┌──────────────┐      ┌──────────────┐                │
-│  │   nginx      │ ───► │  Go server   │                │
-│  │  (port 80)   │      │  (:3100)     │                │
-│  └──────────────┘      └──────────────┘                │
-│         │                                        │
-│         ├── / → React frontend (dist/web)       │
-│         ├── /cli/ → CLI downloads (dist/cli)    │
-│         └── /api, /ws → proxy to Go server      │
-└─────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────┐
+│              Docker Container             │
+│  ┌─────────┐          ┌──────────────┐  │
+│  │  nginx  │ ───────► │  Go server   │  │
+│  │ (port 80│          │  (:3100)     │  │
+│  └─────────┘          └──────────────┘  │
+│         │                               │
+│         ├── / → React frontend (dist/web)│
+│         ├── /cli/ → CLI downloads        │
+│         └── /ws → proxy to Go server     │
+└───────────────────────────────────────────┘
 ```
 
 - **server**: Go backend that handles WebSocket connections, manages session state, persists data to JSON files
-- **cli**: Go worker that spawns the Node.js bridge to execute Claude Code tasks (included in the image but typically run separately by users)
-- **web**: React frontend with Vite, served by nginx
+- **cli**: Go worker that spawns the Node.js bridge to execute Claude Code tasks
+- **frontend**: React frontend with Vite, served by nginx
 - **nginx**: Serves frontend, CLI downloads, and proxies API/WebSocket to Go server
 
 **Components:**
 - `Dockerfile`: Multi-stage build for the unified image
 - `docker-compose.yml`: Single service deployment
-- `server/nginx.conf`: nginx configuration for the unified service
-- `server/supervisord.conf`: Process manager for nginx and Go server
+- `server/nginx.conf.docker`: nginx configuration for the Docker image
+- `server/nginx.conf`: nginx configuration for local development
+- `server/start.sh`: Simple script to start both nginx and Go server
 
 ## Commands
 
@@ -44,7 +45,7 @@ docker compose build && docker compose up -d
 
 ### build.sh (Local Build)
 ```bash
-# Build CLI (multi-platform) and web frontend into server/dist/
+# Build CLI (multi-platform) and frontend into server/dist/
 ./build.sh
 ```
 
@@ -53,7 +54,7 @@ docker compose build && docker compose up -d
 # Build image
 docker compose build
 
-# Start service (port 8080)
+# Start service (port 8118)
 docker compose up -d
 
 # View logs
@@ -79,9 +80,9 @@ go build -o vibe-cli ./cmd            # Build CLI worker
 ./vibe-cli                            # Run worker
 ```
 
-**Web Frontend:**
+**Frontend:**
 ```bash
-cd web
+cd frontend
 npm install
 npm run dev         # Start dev server
 npm run build       # Production build
@@ -109,19 +110,17 @@ Message types flow between components. Key message types:
 ## Data Flow
 
 ```
-┌─────────┐      WebSocket       ┌─────────┐      WebSocket       ┌─────────┐
-│  Web    │ ◄──────────────────► │  Go     │ ◄──────────────────► │  CLI    │
-│  (React)│       /ws            │  Server │       /ws/cli        │  Worker │
-└─────────┘                      └─────────┘                      └────┬────┘
-                                                                     │
-                                                                     │ spawn
-                                                                     ▼
-                                                              ┌─────────────┐
-                                                              │  Node.js    │
-                                                              │  bridge.mjs │
-                                                              │  (claude-   │
-                                                              │   code SDK) │
-                                                              └─────────────┘
+┌──────────┐      WebSocket       ┌──────────┐      WebSocket       ┌──────────┐
+│ Frontend │ ◄──────────────────► │  Server  │ ◄──────────────────► │  CLI     │
+│ (React)  │       /ws            │  (Go)    │       /ws/cli        │ (Go/Node)│
+└──────────┘                      └────┬─────┘                      └────┬─────┘
+                                       │                                 │
+                                       │ nginx                          │ spawn
+                                       ▼                                 ▼
+                            ┌───────────────────┐            ┌───────────────────┐
+                            │ Static file server │            │ Node.js bridge    │
+                            │ CLI downloads      │            │ (claude-code SDK) │
+                            └───────────────────┘            └───────────────────┘
 ```
 
 ## Session Storage
