@@ -29,8 +29,8 @@ This is a "Vibe Coding" application - a Claude Code session manager with a web U
 - **nginx**: Serves frontend, CLI downloads, and proxies API/WebSocket to Go server
 
 **Components:**
-- `Dockerfile`: Multi-stage build for the unified image
-- `docker-compose.yml`: Single service deployment
+- `server/Dockerfile`: Multi-stage build for the unified image
+- `docker-compose.yml`: Service deployment (no build, image only)
 - `server/nginx.conf.docker`: nginx configuration for the Docker image
 - `server/nginx.conf`: nginx configuration for local development
 - `server/start.sh`: Simple script to start both nginx and Go server
@@ -39,22 +39,28 @@ This is a "Vibe Coding" application - a Claude Code session manager with a web U
 
 ### Quick Start (Recommended)
 ```bash
-# Build and start the unified service
-docker compose build && docker compose up -d
+# Build everything (CLI, frontend, Docker image)
+./build.sh
+
+# Start the service
+docker compose up -d
 ```
 
-### build.sh (Local Build)
+### build.sh (Full Build)
 ```bash
-# Build CLI (multi-platform) and frontend into server/dist/
+# Build CLI (multi-platform), frontend, and Docker image (vibe-coding:latest)
 ./build.sh
 ```
 
-### Docker Compose
+### Docker Image (Build Only)
 ```bash
-# Build image
-docker compose build
+# Build Docker image from server directory
+cd server && docker build -t vibe-coding:latest .
+```
 
-# Start service (port 8118)
+### Docker Compose (Run Only)
+```bash
+# Start service (port 8118) - requires image built first
 docker compose up -d
 
 # View logs

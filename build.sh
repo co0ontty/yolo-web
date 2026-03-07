@@ -25,6 +25,10 @@ GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o "$SCRIPT_DIR/server/dist/cli/
 echo "Building CLI for Windows amd64..."
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o "$SCRIPT_DIR/server/dist/cli/vibe-cli-windows-amd64.exe" ./cmd
 
+echo "=== Copying install script ==="
+cp "$SCRIPT_DIR/cli/install.sh" "$SCRIPT_DIR/server/dist/cli/install.sh"
+chmod +x "$SCRIPT_DIR/server/dist/cli/install.sh"
+
 echo "=== Building frontend ==="
 cd "$SCRIPT_DIR/frontend"
 npm install
@@ -38,11 +42,14 @@ cp -r "$SCRIPT_DIR/cli/internal" "$SCRIPT_DIR/server/"
 cp "$SCRIPT_DIR/cli/package.json" "$SCRIPT_DIR/server/"
 cp -r "$SCRIPT_DIR/cli/node_modules" "$SCRIPT_DIR/server/"
 
+echo "=== Building Docker image ==="
+cd "$SCRIPT_DIR/server"
+docker build -t vibe-coding:latest .
+
 echo "=== Build complete ==="
 echo "Dist directory: $SCRIPT_DIR/server/dist"
 echo "  - Web: $SCRIPT_DIR/server/dist/web"
 echo "  - CLI downloads: $SCRIPT_DIR/server/dist/cli"
 echo ""
-echo "Starting service..."
-cd "$SCRIPT_DIR"
+echo "To start the service, run: docker compose up -d"
 docker compose up -d
