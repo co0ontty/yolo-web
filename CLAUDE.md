@@ -25,7 +25,7 @@ A "Vibe Coding" application - a Claude Code session manager with a web UI. Users
 
 **Components:**
 - `server/`: Go backend - WebSocket connections, session state management, JSON file persistence
-- `cli/`: Go worker that spawns Node.js bridge to execute Claude Code tasks
+- `cli/`: Go worker that spawns Claude Code CLI to execute tasks
 - `frontend/`: React + Vite frontend
 - `server/internal/handler/`: WebSocket and HTTP request handlers
 - `server/internal/model/`: Data models (Session, Message, ChatRequest, StreamResponse)
@@ -88,3 +88,11 @@ docker compose down                                # Stop
 - `default`: Full permission prompts via UI
 - `acceptEdits`: Auto-accept file edits, prompt for other operations
 - `yolo`: Bypasses all permissions
+
+**CLI Configuration:**
+- `YOLO_SERVER_WS`: WebSocket address (e.g., `ws://192.168.0.7:8118/ws/cli`)
+- `VIBE_SERVER`: HTTP address (e.g., `http://192.168.0.7:8118`), converted to WebSocket
+
+**Dependencies:**
+- Server: `github.com/gorilla/websocket`
+- CLI: Requires Claude Code CLI installed (`npm install -g @anthropic-ai/claude-code`)
