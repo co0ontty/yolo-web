@@ -14,8 +14,9 @@ A "Vibe Coding" application - a Claude Code session manager with a web UI. Users
 │              Docker Container             │
 │  ┌─────────┐          ┌──────────────┐  │
 │  │  nginx  │ ───────► │  Go server   │  │
-│  │ (port 80│          │  (:3100)     │  │
-│  └─────────┘          └──────────────┘  │
+│  │(port 80 │          │  (:3100)     │  │
+│  │ 443 ssl)│          └──────────────┘  │
+│  └─────────┘                            │
 │         │                               │
 │         ├── / → React frontend (dist/web)│
 │         ├── /cli/ → CLI downloads        │
@@ -34,11 +35,20 @@ A "Vibe Coding" application - a Claude Code session manager with a web UI. Users
 ## Commands
 
 ### Quick Start
+
+**首次启动（生成自签名证书）:**
 ```bash
-./build.sh           # Build CLI (multi-platform), frontend, Docker image
-docker compose up -d # Start service on port 8118
+./server/gen-cert.sh   # 生成自签名证书（仅首次）
+./build.sh             # Build CLI (multi-platform), frontend, Docker image
+docker compose up -d   # Start service on port 8118 (HTTP) / 8443 (HTTPS)
 docker compose logs -f
 ```
+
+**访问地址:**
+- HTTPS: `https://localhost:8443` 或 `https://你的IP:8443`
+- HTTP: `http://localhost:8118` (自动重定向到 HTTPS)
+
+**注意:** 自签名证书会在浏览器显示安全警告，点击"继续访问"即可。生产环境请替换为正式证书。
 
 ### Development
 
@@ -90,8 +100,12 @@ docker compose down                                # Stop
 - `yolo`: Bypasses all permissions
 
 **CLI Configuration:**
-- `YOLO_SERVER_WS`: WebSocket address (e.g., `ws://192.168.0.7:8118/ws/cli`)
-- `VIBE_SERVER`: HTTP address (e.g., `http://192.168.0.7:8118`), converted to WebSocket
+- `YOLO_SERVER_WS`: WebSocket address (e.g., `wss://192.168.0.7:8443/ws/cli`)
+- `VIBE_SERVER`: HTTPS address (e.g., `https://192.168.0.7:8443`), automatically converted to WSS
+
+**自签名证书支持:**
+- CLI 已配置 `InsecureSkipVerify: true`，支持自签名证书
+- 开发环境可正常使用，生产环境建议替换为正式证书
 
 **Dependencies:**
 - Server: `github.com/gorilla/websocket`
