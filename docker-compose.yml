@@ -11,6 +11,7 @@ services:
     environment:
       # Web 认证配置 (可选)
       # 启用认证：设置 WEB_AUTH_ENABLED=true 并配置用户名密码
+      # 认证由应用层 (Go server) 处理，不再是 nginx 基本认证
       - WEB_AUTH_ENABLED=${WEB_AUTH_ENABLED:-false}
       - WEB_AUTH_USER=${WEB_AUTH_USER:-admin}
       - WEB_AUTH_PASSWORD=${WEB_AUTH_PASSWORD:-}

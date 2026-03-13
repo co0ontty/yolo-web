@@ -90,6 +90,16 @@ docker compose down                                # Stop
 - `sessions` - broadcast from server to all frontends
 - `cli_status` - server → frontend (CLI connection status)
 
+**Authentication (前后端认证):**
+- 认证方式：基于 Session 的 Token 认证（不再使用 nginx 基本认证）
+- 登录 API: `POST /api/login` (body: `{ username, password }`)
+- 登出 API: `POST /api/logout`
+- 检查会话：`GET /api/check-session`
+- Token 存储：localStorage
+- WebSocket 认证：通过 URL 参数 `?token=xxx` 传递
+- Token 有效期：24 小时
+- 启用认证：设置 `WEB_AUTH_ENABLED=true` 和 `WEB_AUTH_PASSWORD`
+
 **Session Storage:**
 - Persisted to `data/sessions.json` (`/app/data` in Docker)
 - Tracks: session ID, directory, permission mode, Claude token, message history
