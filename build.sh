@@ -70,7 +70,7 @@ cp -r "$SCRIPT_DIR/cli/internal" "$SCRIPT_DIR/server/cli-internal"
 
 echo "=== Building Docker image ==="
 cd "$SCRIPT_DIR/server"
-docker build --no-cache -t vibe-coding:latest .
+docker build -t vibe-coding:latest .
 
 echo "=== Build complete ==="
 echo "Dist directory: $SCRIPT_DIR/server/dist"
