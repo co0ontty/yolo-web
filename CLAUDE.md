@@ -8,7 +8,6 @@ A "Vibe Coding" application - a Claude Code session manager with a web UI. Users
 
 ## Architecture
 
-**Unified Architecture (Single Docker Image):**
 ```
 ┌───────────────────────────────────────────┐
 │              Docker Container             │
@@ -24,127 +23,79 @@ A "Vibe Coding" application - a Claude Code session manager with a web UI. Users
 └───────────────────────────────────────────┘
 ```
 
+**Git Submodules:** `server/`, `cli/`, `frontend/` are independent git repositories. When making changes, commit within the submodule first, then update the parent repo's submodule reference.
+
 **Components:**
-- `server/`: Go backend - WebSocket connections, session state management, SQLite persistence
-- `cli/`: Go worker that spawns Claude Code CLI to execute tasks
+- `server/`: Go backend - WebSocket hub, session state, SQLite persistence
+- `cli/`: Go worker - spawns Claude Code CLI to execute tasks
 - `frontend/`: React + Vite frontend
-- `server/internal/handler/`: WebSocket and HTTP request handlers
-- `server/internal/model/`: Data models (Session, Message, ChatRequest, StreamResponse)
-- `server/internal/store/`: SQLite-based session storage
-- `server/internal/auth/`: Token-based authentication management
 
 **Server Entry Point:** `server/cmd/main.go`
-- Initializes auth manager with session cleanup (every 10 minutes)
-- Sets up WebSocket handlers (`/ws`, `/ws/cli`)
+- WebSocket handlers: `/ws` (frontend), `/ws/cli` (worker)
 - API endpoints: `/api/login`, `/api/logout`, `/api/check-session`, `/api/list-dirs`, `/health`
 
 **CLI Entry Point:** `cli/cmd/main.go`
-- Supports `version`, `help` commands
-- Connects to server via WebSocket and executes tasks
 
 ## Commands
 
-### Quick Start
-
-**首次启动（生成自签名证书）:**
 ```bash
-./server/gen-cert.sh   # 生成自签名证书（仅首次）
-./build.sh             # Build CLI (multi-platform), frontend, Docker image
-docker compose up -d   # Start service on port 8443 (HTTPS)
-docker compose logs -f
-```
+# Full build (CLI multi-platform, frontend, Docker image) and start
+./build.sh
 
-**访问地址:**
-- HTTPS: `https://localhost:8443` 或 `https://你的 IP:8443`
+# Server development
+cd server && go run cmd/main.go           # Run on port 3100
 
-**注意:** 自签名证书会在浏览器显示安全警告，点击"继续访问"即可。生产环境请替换为正式证书。
-
-### Development
-
-**Server:**
-```bash
-cd server
-go run cmd/main.go           # Run server (port 3100 or $PORT)
-go build -o vibe-server ./cmd
-```
-
-**CLI Worker:**
-```bash
-cd cli
-go build -o vibe-cli ./cmd
+# CLI development
+cd cli && go build -o vibe-cli ./cmd
 ./vibe-cli -server ws://localhost:3100/ws/cli
-```
 
-**Frontend:**
-```bash
-cd frontend
-npm install
-npm run dev     # Vite dev server
-npm run build   # Production build → dist/
-```
+# Frontend development
+cd frontend && npm install && npm run dev
 
-**Docker:**
-```bash
-cd server && docker build -t vibe-coding:latest .  # Build image
-docker compose up -d                               # Run (port 8443)
-docker compose down                                # Stop
+# Docker
+docker compose up -d      # Start on port 8443 (HTTPS)
+docker compose logs -f    # View logs
+docker compose down       # Stop
 ```
 
 ## Key Conventions
 
-**Message Types (WebSocket):**
+**WebSocket Message Types:**
 - `create_session`, `delete_session`, `chat`, `stop` - frontend → server
 - `execute_task`, `stop` - server → CLI
 - `stream`, `message_complete`, `permission_request` - CLI → server → frontend
-- `sessions` - broadcast from server to all frontends
-- `cli_status` - server → frontend (CLI connection status)
+- `sessions` - broadcast to all frontends
+- `cli_status` - CLI connection status
 
 **Authentication:**
-- Token-based authentication (Session layer, not nginx basic auth)
-- Login API: `POST /api/login` (body: `{ username, password }`)
-- Logout API: `POST /api/logout`
-- Check session: `GET /api/check-session`
-- Token storage: localStorage
+- Token-based (application layer, not nginx basic auth)
+- Enable: `WEB_AUTH_ENABLED=true` + `WEB_AUTH_PASSWORD`
+- Token expiry: 24 hours (web session), long-lived (CLI tokens)
 - WebSocket auth: URL parameter `?token=xxx`
-- Token expiry: 24 hours
-- Enable auth: Set `WEB_AUTH_ENABLED=true` and `WEB_AUTH_PASSWORD`
-
-**Session Storage:**
-- Persisted to `data/sessions.db` (SQLite database)
-- Tracks: session ID, directory, permission mode, Claude token, message history
 
 **Permission Modes:**
 - `default`: Full permission prompts via UI
-- `acceptEdits`: Auto-accept file edits, prompt for other operations
+- `acceptEdits`: Auto-accept file edits
 - `yolo`: Bypasses all permissions
 
 **CLI Configuration:**
-- `YOLO_SERVER_WS`: WebSocket address (e.g., `wss://192.168.0.7:8443/ws/cli`)
-- `VIBE_SERVER`: HTTPS address (e.g., `https://192.168.0.7:8443`), automatically converted to WSS
-- `CLI_AUTH_TOKEN`: Auth token (if server has auth enabled)
-
-**自签名证书支持:**
-- CLI configured with `InsecureSkipVerify: true` for self-signed certificates
-- Suitable for development; replace with production certificates for deployment
+- `VIBE_SERVER`: HTTPS address (e.g., `https://192.168.0.7:8443`)
+- `CLI_AUTH_TOKEN`: Auth token for CLI worker
 
 ## Coding Style
 
-**Go:**
-- Format with `gofmt`
-- Lowercase package names, single-word where practical
+**Go:** Format with `gofmt`, lowercase package names
 
-**Frontend:**
-- ES modules, React function components
-- 2-space indentation, no semicolons unless required
-- `PascalCase` for components, `camelCase` for variables/functions
-- `snake_case` for WebSocket message types
+**Frontend:** ES modules, React function components, 2-space indent, no semicolons unless required. `PascalCase` for components, `camelCase` for variables, `snake_case` for WebSocket message types.
 
-**Environment Variables:**
-- Use `UPPER_SNAKE_CASE`: `WEB_AUTH_ENABLED`, `WEB_AUTH_PASSWORD`, `CLAUDE_TOKEN`
+**Commits:** Use conventional prefixes: `feat:`, `fix:`, `docs:`, `chore:`
+
+## Testing
+
+No automated test suite. Validate changes with focused local runs in the affected app (`server`, `cli`, or `frontend`).
 
 ## Dependencies
 
-**Server:** `github.com/gorilla/websocket`, `github.com/mattn/go-sqlite3`
-**CLI:** `github.com/gorilla/websocket`
-**Frontend:** React 18, Vite 5
-**Runtime:** Claude Code CLI required (`npm install -g @anthropic-ai/claude-code`)
+- **Server:** `gorilla/websocket`, `mattn/go-sqlite3`
+- **Frontend:** React 18, Vite 5
+- **Runtime:** Claude Code CLI (`npm install -g @anthropic-ai/claude-code`)
