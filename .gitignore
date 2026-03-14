@@ -20,3 +20,4 @@ vibe-cli
 Thumbs.db
 *.log
 server/logs/
+.env
