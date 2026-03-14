@@ -18,6 +18,8 @@ services:
       # 其他配置
       - PORT=3100
       - CLAUDE_TOKEN=${CLAUDE_TOKEN:-}
+      # 会话存储后端 (sqlite 或 json，sqlite 在 Docker 中可能有 CGO 问题)
+      - SESSION_STORE_BACKEND=json
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3100/health"]

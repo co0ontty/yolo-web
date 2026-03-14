@@ -2,85 +2,40 @@
 
 ## Project Structure & Module Organization
 
-```
-vibe-coding/
-├── server/          # Go backend (WebSocket, session management, HTTP API)
-│   ├── cmd/              # Main entry point
-│   ├── internal/         # Core packages
-│   │   ├── handler/       # WebSocket and HTTP handlers
-│   │   ├── model/         # Data models (Session, Message, ChatRequest)
-│   │   ├── store/         # JSON file-based session storage
-│   │   └── auth/          # Authentication logic
-│   └── Dockerfile         # Production Docker image
-├── cli/             # Go CLI worker (spawns Claude Code CLI)
-│   ├── cmd/              # Main entry point
-│   └── internal/         # CLI internals
-├── frontend/        # React + Vite frontend
-│   └── src/              # React components and app logic
-└── certs/           # SSL certificates (generated)
-```
+- `server/` contains the Go backend. Use `cmd/` for the entrypoint and `internal/{auth,handler,model,store}` for application logic.
+- `cli/` contains the Go worker that connects to the server WebSocket; keep executable startup in `cmd/` and reusable logic in `internal/`.
+- `frontend/` is the React + Vite app. Put UI code in `frontend/src/`; treat `frontend/dist/` as generated output.
+- `server/dist/`, `server/data/`, `certs/`, and `frontend/node_modules/` are build/runtime artifacts. Do not hand-edit generated files unless the task specifically requires it.
 
 ## Build, Test, and Development Commands
 
-**Full Build & Deploy:**
-```bash
-./build.sh             # Build CLI (multi-platform), frontend, Docker image
-docker compose up -d   # Start on port 8118 (HTTP) / 8443 (HTTPS)
-```
-
-**Server (Go):**
-```bash
-cd server
-go run cmd/main.go           # Development (port 3100)
-go build -o vibe-server ./cmd  # Build binary
-```
-
-**CLI Worker (Go):**
-```bash
-cd cli
-go build -o vibe-cli ./cmd
-./vibe-cli -server ws://localhost:3100/ws/cli
-```
-
-**Frontend (React + Vite):**
-```bash
-cd frontend
-npm install
-npm run dev     # Development server
-npm run build   # Production build → dist/
-```
+- `./build.sh` builds the CLI binaries, frontend bundle, Docker image, and then starts `docker compose`.
+- `cd server && go run cmd/main.go` runs the backend locally on port `3100`.
+- `cd server && go build -o vibe-server ./cmd` builds the server binary.
+- `cd cli && go build -o vibe-cli ./cmd && ./vibe-cli -server ws://localhost:3100/ws/cli` builds and runs the worker.
+- `cd frontend && npm run dev` starts the Vite dev server; `npm run build` creates the production bundle.
 
 ## Coding Style & Naming Conventions
 
-- **Go:** Standard gofmt formatting; package names are lowercase single words
-- **JavaScript/React:** ES6+ syntax; components use PascalCase
-- **WebSocket message types:** snake_case (e.g., create_session, message_complete)
-- **Environment variables:** UPPER_SNAKE_CASE (e.g., YOLO_SERVER_WS, WEB_AUTH_ENABLED)
+- Format Go code with `gofmt`; keep package names lowercase and single-word where practical.
+- Follow the existing frontend style: ES modules, React function components, 2-space indentation, and no semicolons unless required.
+- Use `PascalCase` for React components, `camelCase` for variables/functions, `snake_case` for WebSocket message types such as `create_session`.
+- Keep environment variables in `UPPER_SNAKE_CASE`, for example `WEB_AUTH_ENABLED` and `WEB_AUTH_PASSWORD`.
 
 ## Testing Guidelines
 
-No automated tests currently exist. When adding tests:
-- Go: Place *_test.go files alongside source code
-- Frontend: Use Vitest (Vite-compatible) with *.test.js or *.spec.js naming
+- No automated test suite is currently maintained. Validate changes with focused local runs in the affected app (`server`, `cli`, or `frontend`).
+- When adding tests, place Go tests beside the source as `*_test.go` and frontend tests as `*.test.js` or `*.spec.js` using Vitest-compatible patterns.
 
 ## Commit & Pull Request Guidelines
 
-**Commit Message Format:**
-- Use conventional commit prefixes: chore:, docs:, feat:, fix:
-- Keep messages concise and descriptive
-- Examples from history:
-  - chore: 更新子模块引用
-  - docs: 更新 HTTPS/SSL 部署文档和配置
-  - feat: 添加 Web 认证配置示例
+- Follow conventional prefixes used in history: `feat:`, `fix:`, `docs:`, `chore:`.
+- Keep commits small and descriptive, for example `fix: handle websocket reconnect on auth expiry`.
+- PRs should summarize the user-facing change, list local verification steps, and link related issues when available. Include screenshots for frontend changes.
 
-**Pull Requests:**
-- Reference related issues when applicable
-- Include clear description of changes
-- Test both Docker deployment and local development
+## Security & Configuration Tips
 
-## Architecture Notes
-
-- **WebSocket Protocol:** Frontend ↔ Server ↔ CLI communication via JSON messages
-- **Session Storage:** JSON file at data/sessions.json (or /app/data in Docker)
-- **Permission Modes:** default, acceptEdits, yolo (controls Claude Code permission prompts)
-- **Authentication:** Token-based session auth (24-hour expiry); configure via WEB_AUTH_ENABLED and WEB_AUTH_PASSWORD
+- Authentication is token-based; review `WEB_AUTH_ENABLED` and `WEB_AUTH_PASSWORD` before deploying.
+- CLI tokens are managed via `/api/cli-tokens` endpoints; use the Web UI "CLI Token Management" to create and revoke tokens.
+- Session data is stored in `server/data/`; avoid committing secrets, tokens, or generated certificates.
+- One-line CLI installation: `SERVER=https://server:8443 TOKEN=cli_xxx bash -c "$(curl -fsSLk https://server:8443/cli/install.sh)"`

@@ -4,6 +4,14 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+cleanup_cli_sources() {
+    rm -f "$SCRIPT_DIR/server/cli-go.mod" "$SCRIPT_DIR/server/cli-go.sum"
+    rm -rf "$SCRIPT_DIR/server/cli-cmd" "$SCRIPT_DIR/server/cli-internal"
+}
+
+trap cleanup_cli_sources EXIT
+cleanup_cli_sources
+
 # 创建 server 的 dist 目录
 mkdir -p server/dist/cli
 mkdir -p server/dist/web
@@ -11,18 +19,36 @@ mkdir -p server/dist/web
 echo "=== Building CLI (multi-platform) ==="
 cd "$SCRIPT_DIR/cli"
 
-# 编译各个平台的 CLI 可执行文件
-echo "Building CLI for Linux amd64..."
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o "$SCRIPT_DIR/server/dist/cli/vibe-cli-linux-amd64" ./cmd
+build_cli() {
+    local goos="$1"
+    local goarch="$2"
+    local output="$3"
+    local host_os host_arch
 
-echo "Building CLI for Darwin amd64..."
-GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -o "$SCRIPT_DIR/server/dist/cli/vibe-cli-darwin-amd64" ./cmd
+    host_os="$(go env GOHOSTOS)"
+    host_arch="$(go env GOHOSTARCH)"
 
-echo "Building CLI for Darwin arm64..."
-GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o "$SCRIPT_DIR/server/dist/cli/vibe-cli-darwin-arm64" ./cmd
+    # Try CGO-disabled build first (most compatible)
+    if CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" go build -o "$output" ./cmd; then
+        return 0
+    fi
 
-echo "Building CLI for Windows amd64..."
-GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o "$SCRIPT_DIR/server/dist/cli/vibe-cli-windows-amd64.exe" ./cmd
+    # Skip retry for cross-compilation targets
+    if [[ "$goos" != "$host_os" || "$goarch" != "$host_arch" ]]; then
+        echo "Error: CGO-disabled build failed for ${goos}/${goarch} (cross-compilation target, cannot retry with CGO enabled)"
+        return 1
+    fi
+
+    # Retry with CGO enabled on native target only
+    echo "Retrying ${goos}/${goarch} build with CGO enabled..."
+    GOOS="$goos" GOARCH="$goarch" go build -o "$output" ./cmd
+}
+
+# Build CLI for each target platform
+build_cli linux amd64 "$SCRIPT_DIR/server/dist/cli/vibe-cli-linux-amd64"
+build_cli darwin amd64 "$SCRIPT_DIR/server/dist/cli/vibe-cli-darwin-amd64"
+build_cli darwin arm64 "$SCRIPT_DIR/server/dist/cli/vibe-cli-darwin-arm64"
+build_cli windows amd64 "$SCRIPT_DIR/server/dist/cli/vibe-cli-windows-amd64.exe"
 
 echo "=== Copying install script ==="
 cp "$SCRIPT_DIR/cli/install.sh" "$SCRIPT_DIR/server/dist/cli/install.sh"
@@ -44,7 +70,7 @@ cp -r "$SCRIPT_DIR/cli/internal" "$SCRIPT_DIR/server/cli-internal"
 
 echo "=== Building Docker image ==="
 cd "$SCRIPT_DIR/server"
-docker build -t vibe-coding:latest .
+docker build --no-cache -t vibe-coding:latest .
 
 echo "=== Build complete ==="
 echo "Dist directory: $SCRIPT_DIR/server/dist"

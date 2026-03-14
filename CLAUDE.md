@@ -25,12 +25,22 @@ A "Vibe Coding" application - a Claude Code session manager with a web UI. Users
 ```
 
 **Components:**
-- `server/`: Go backend - WebSocket connections, session state management, JSON file persistence
+- `server/`: Go backend - WebSocket connections, session state management, SQLite persistence
 - `cli/`: Go worker that spawns Claude Code CLI to execute tasks
 - `frontend/`: React + Vite frontend
 - `server/internal/handler/`: WebSocket and HTTP request handlers
 - `server/internal/model/`: Data models (Session, Message, ChatRequest, StreamResponse)
-- `server/internal/store/`: JSON file-based session storage
+- `server/internal/store/`: SQLite-based session storage
+- `server/internal/auth/`: Token-based authentication management
+
+**Server Entry Point:** `server/cmd/main.go`
+- Initializes auth manager with session cleanup (every 10 minutes)
+- Sets up WebSocket handlers (`/ws`, `/ws/cli`)
+- API endpoints: `/api/login`, `/api/logout`, `/api/check-session`, `/api/list-dirs`, `/health`
+
+**CLI Entry Point:** `cli/cmd/main.go`
+- Supports `version`, `help` commands
+- Connects to server via WebSocket and executes tasks
 
 ## Commands
 
@@ -40,13 +50,12 @@ A "Vibe Coding" application - a Claude Code session manager with a web UI. Users
 ```bash
 ./server/gen-cert.sh   # 生成自签名证书（仅首次）
 ./build.sh             # Build CLI (multi-platform), frontend, Docker image
-docker compose up -d   # Start service on port 8118 (HTTP) / 8443 (HTTPS)
+docker compose up -d   # Start service on port 8443 (HTTPS)
 docker compose logs -f
 ```
 
 **访问地址:**
-- HTTPS: `https://localhost:8443` 或 `https://你的IP:8443`
-- HTTP: `http://localhost:8118` (自动重定向到 HTTPS)
+- HTTPS: `https://localhost:8443` 或 `https://你的 IP:8443`
 
 **注意:** 自签名证书会在浏览器显示安全警告，点击"继续访问"即可。生产环境请替换为正式证书。
 
@@ -77,7 +86,7 @@ npm run build   # Production build → dist/
 **Docker:**
 ```bash
 cd server && docker build -t vibe-coding:latest .  # Build image
-docker compose up -d                               # Run (port 8118)
+docker compose up -d                               # Run (port 8443)
 docker compose down                                # Stop
 ```
 
@@ -90,18 +99,18 @@ docker compose down                                # Stop
 - `sessions` - broadcast from server to all frontends
 - `cli_status` - server → frontend (CLI connection status)
 
-**Authentication (前后端认证):**
-- 认证方式：基于 Session 的 Token 认证（不再使用 nginx 基本认证）
-- 登录 API: `POST /api/login` (body: `{ username, password }`)
-- 登出 API: `POST /api/logout`
-- 检查会话：`GET /api/check-session`
-- Token 存储：localStorage
-- WebSocket 认证：通过 URL 参数 `?token=xxx` 传递
-- Token 有效期：24 小时
-- 启用认证：设置 `WEB_AUTH_ENABLED=true` 和 `WEB_AUTH_PASSWORD`
+**Authentication:**
+- Token-based authentication (Session layer, not nginx basic auth)
+- Login API: `POST /api/login` (body: `{ username, password }`)
+- Logout API: `POST /api/logout`
+- Check session: `GET /api/check-session`
+- Token storage: localStorage
+- WebSocket auth: URL parameter `?token=xxx`
+- Token expiry: 24 hours
+- Enable auth: Set `WEB_AUTH_ENABLED=true` and `WEB_AUTH_PASSWORD`
 
 **Session Storage:**
-- Persisted to `data/sessions.json` (`/app/data` in Docker)
+- Persisted to `data/sessions.db` (SQLite database)
 - Tracks: session ID, directory, permission mode, Claude token, message history
 
 **Permission Modes:**
@@ -112,11 +121,30 @@ docker compose down                                # Stop
 **CLI Configuration:**
 - `YOLO_SERVER_WS`: WebSocket address (e.g., `wss://192.168.0.7:8443/ws/cli`)
 - `VIBE_SERVER`: HTTPS address (e.g., `https://192.168.0.7:8443`), automatically converted to WSS
+- `CLI_AUTH_TOKEN`: Auth token (if server has auth enabled)
 
 **自签名证书支持:**
-- CLI 已配置 `InsecureSkipVerify: true`，支持自签名证书
-- 开发环境可正常使用，生产环境建议替换为正式证书
+- CLI configured with `InsecureSkipVerify: true` for self-signed certificates
+- Suitable for development; replace with production certificates for deployment
 
-**Dependencies:**
-- Server: `github.com/gorilla/websocket`
-- CLI: Requires Claude Code CLI installed (`npm install -g @anthropic-ai/claude-code`)
+## Coding Style
+
+**Go:**
+- Format with `gofmt`
+- Lowercase package names, single-word where practical
+
+**Frontend:**
+- ES modules, React function components
+- 2-space indentation, no semicolons unless required
+- `PascalCase` for components, `camelCase` for variables/functions
+- `snake_case` for WebSocket message types
+
+**Environment Variables:**
+- Use `UPPER_SNAKE_CASE`: `WEB_AUTH_ENABLED`, `WEB_AUTH_PASSWORD`, `CLAUDE_TOKEN`
+
+## Dependencies
+
+**Server:** `github.com/gorilla/websocket`, `github.com/mattn/go-sqlite3`
+**CLI:** `github.com/gorilla/websocket`
+**Frontend:** React 18, Vite 5
+**Runtime:** Claude Code CLI required (`npm install -g @anthropic-ai/claude-code`)
